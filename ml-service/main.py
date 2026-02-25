@@ -85,8 +85,16 @@ def build_features(df: pd.DataFrame, horizon: int) -> pd.DataFrame:
 
 def walk_forward_backtest(df: pd.DataFrame, horizon: int, n_splits: int = 5):
     """
-    Time-series walk-forward cross-validation.
-    Trains on past, predicts on next window. No data leakage.
+    Time-series walk-forward cross-validation with strict temporal partitioning.
+
+    Partitioning happens before training: the last `horizon` rows of each training
+    window are excluded because their target labels (close[t+horizon]/close[t]-1)
+    are computed using prices from the test window. Including them would allow the
+    model to implicitly train on future data — the canonical time-series leakage bug.
+
+    Standard k-fold cross-validation randomly assigns rows to folds, so a row from
+    day 300 can appear in training while day 250 is in validation. For time series
+    this is invalid. Walk-forward enforces strict temporal ordering.
     """
     feature_cols = [c for c in df.columns if c not in ['Open', 'High', 'Low', 'Close', 'Volume', 'target']]
     X = df[feature_cols]
@@ -104,7 +112,11 @@ def walk_forward_backtest(df: pd.DataFrame, horizon: int, n_splits: int = 5):
         train_end = min_train + i * fold_size
         test_end = min(train_end + fold_size, n)
 
-        X_train, y_train = X.iloc[:train_end], y.iloc[:train_end]
+        # Exclude last `horizon` rows from training: their target values use
+        # close prices from [train_end, train_end+horizon), which overlaps the
+        # test window. This is the exact fix for target-label leakage.
+        safe_train_end = max(1, train_end - horizon)
+        X_train, y_train = X.iloc[:safe_train_end], y.iloc[:safe_train_end]
         X_test = X.iloc[train_end:test_end]
         close_test = close.iloc[train_end:test_end]
 
