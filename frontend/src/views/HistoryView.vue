@@ -74,6 +74,9 @@
               <span class="text-xl font-bold" :class="selected.metrics.dirAcc >= 0.5 ? 'text-emerald-400' : 'text-red-400'">
                 {{ (selected.metrics.dirAcc * 100).toFixed(1) }}%
               </span>
+              <span class="text-xs text-gray-500">
+                +{{ ((selected.metrics.dirAcc - 0.5) * 100).toFixed(1) }}pp vs random
+              </span>
             </div>
           </div>
 

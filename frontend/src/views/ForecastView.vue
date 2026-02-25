@@ -69,9 +69,14 @@
         </div>
 
         <!-- Training config summary -->
-        <p v-if="selectedTicker" class="text-xs text-gray-500">
-          {{ selectedTicker }} &bull; {{ dateRange.start }} → {{ dateRange.end }} &bull; {{ horizon }}-day horizon
-        </p>
+        <div class="flex items-center justify-between">
+          <p v-if="selectedTicker" class="text-xs text-gray-500">
+            {{ selectedTicker }} &bull; {{ dateRange.start }} → {{ dateRange.end }} &bull; {{ horizon }}-day horizon
+          </p>
+          <span class="text-xs text-gray-600 bg-gray-800 px-2 py-1 rounded-md ml-auto">
+            Walk-forward · 5-fold · Temporal split · No lookahead
+          </span>
+        </div>
       </div>
 
       <!-- Error -->
@@ -104,7 +109,9 @@
             <span class="text-2xl font-bold" :class="store.result.metrics.dirAcc >= 0.5 ? 'text-emerald-400' : 'text-red-400'">
               {{ (store.result.metrics.dirAcc * 100).toFixed(1) }}%
             </span>
-            <span class="text-xs text-gray-500">Up/Down correct</span>
+            <span class="text-xs text-gray-500">
+              +{{ ((store.result.metrics.dirAcc - 0.5) * 100).toFixed(1) }}pp vs random
+            </span>
           </div>
         </div>
 
