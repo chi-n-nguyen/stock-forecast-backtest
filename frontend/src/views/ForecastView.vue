@@ -96,8 +96,8 @@
           </div>
           <div class="metric-tile">
             <span class="text-xs text-gray-400 uppercase tracking-wide">RMSE</span>
-            <span class="text-2xl font-bold text-emerald-400">${{ store.result.metrics.rmse.toFixed(2) }}</span>
-            <span class="text-xs text-gray-500">Root Mean Sq Error</span>
+            <span class="text-2xl font-bold text-emerald-400">{{ store.result.metrics.rmse.toFixed(4) }}</span>
+            <span class="text-xs text-gray-500">RMSE (return basis)</span>
           </div>
           <div class="metric-tile">
             <span class="text-xs text-gray-400 uppercase tracking-wide">Dir. Accuracy</span>

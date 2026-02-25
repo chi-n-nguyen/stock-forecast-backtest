@@ -67,7 +67,7 @@
             </div>
             <div class="metric-tile">
               <span class="text-xs text-gray-400">RMSE</span>
-              <span class="text-xl font-bold text-emerald-400">${{ selected.metrics.rmse.toFixed(2) }}</span>
+              <span class="text-xl font-bold text-emerald-400">{{ selected.metrics.rmse.toFixed(4) }}</span>
             </div>
             <div class="metric-tile">
               <span class="text-xs text-gray-400">Dir. Acc</span>

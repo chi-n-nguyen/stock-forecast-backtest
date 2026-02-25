@@ -161,8 +161,15 @@ def compute_metrics(predictions: list) -> dict:
     true_returns = np.array([p['true_return'] for p in valid])
     pred_returns = np.array([p['pred_return'] for p in valid])
 
-    mape = float(mean_absolute_percentage_error(y_true, y_pred))
-    rmse = float(np.sqrt(mean_squared_error(y_true, y_pred)))
+    # Metrics computed on returns (dimensionless), not prices.
+    # Price-based RMSE conflates model skill with price scale (AAPL at $190
+    # vs a $10 stock), making cross-ticker comparison meaningless.
+    # Return-based RMSE (e.g. 0.024 = 2.4% average error) is scale-invariant.
+    # MAPE on returns uses mean(|true|) as denominator to avoid division by
+    # zero on flat days where true_return ≈ 0.
+    abs_true = np.abs(true_returns)
+    mape = float(np.mean(np.abs(true_returns - pred_returns)) / (np.mean(abs_true) + 1e-8))
+    rmse = float(np.sqrt(mean_squared_error(true_returns, pred_returns)))
 
     # Directional accuracy: did we predict up/down correctly?
     correct_direction = np.sign(true_returns) == np.sign(pred_returns)
