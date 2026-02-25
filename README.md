@@ -1,24 +1,24 @@
 # Stock Forecast & Backtest
 
-XGBoost stock forecasting with walk-forward backtesting. The core problem this solves isn't prediction accuracy — it's measurement integrity. Most hobby ML finance projects overstate performance because they leak future data into training. This one doesn't.
+XGBoost stock forecasting with walk-forward backtesting. Built to measure model performance honestly, since a common failure point in finance ML projects is data leakage that inflates backtest results.
 
 ## What it does
 
-- Fetches 1–5 years of OHLCV data via yfinance
+- Fetches 1-5 years of OHLCV data via yfinance
 - Engineers 34 features (lag returns, rolling MAs, RSI, MACD, volatility, volume ratio)
-- Trains XGBoost with **walk-forward temporal splitting** — no random k-fold, no lookahead
+- Trains XGBoost with **walk-forward temporal splitting** (no random k-fold, no lookahead)
 - Reports MAPE, RMSE (return basis), and directional accuracy vs 50% random baseline
 - Serves predictions through a FastAPI layer with in-memory model caching (~85ms p50)
 - Stores forecast history per user in MongoDB (indexed for O(log n) history queries)
 - Auth via Google OAuth
 
-## The leakage fix
+## Leakage fix
 
-Standard k-fold assigns rows randomly to folds, so a row from day 300 can appear in training while day 250 is in validation. Invalid for time series.
+Standard k-fold assigns rows randomly to folds, so a row from day 300 can appear in training while day 250 is in validation. This is invalid for time series data.
 
-Walk-forward isn't enough on its own either. The last `horizon` rows of each training fold have targets (`close[t+horizon]/close[t] - 1`) computed from prices that fall inside the test window. The fix: training always ends at `train_end - horizon`, ensuring no training label touches a test-period price.
+Walk-forward helps, but there's a subtler issue: the last `horizon` rows of each training fold have targets (`close[t+horizon]/close[t] - 1`) computed from prices that fall inside the test window. The fix is to end training at `train_end - horizon`, so no training label touches a test-period price.
 
-This caused directional accuracy to drop from ~64% → ~57% and RMSE to increase. That gap was leakage, not signal.
+With this fix applied, directional accuracy dropped from ~64% to ~57% and RMSE increased slightly. The difference was leakage.
 
 ## Stack
 
@@ -65,11 +65,11 @@ curl -X POST http://localhost:8000/train \
 
 All metrics are computed on **returns**, not prices. Price-based RMSE conflates model skill with price scale (AAPL at $190 vs a $10 stock). Return-based RMSE is scale-invariant and cross-ticker comparable.
 
-Directional accuracy is shown with a `+Xpp vs random` label. 50% is the random baseline. The model's edge above 50% is what matters — and it's smaller after fixing leakage, which is the correct outcome.
+Directional accuracy is shown with a `+Xpp vs random` label relative to the 50% random baseline. The number is smaller after fixing leakage, which is expected.
 
-## Limitations (honest)
+## Limitations
 
-- No transaction cost simulation — directional accuracy alone doesn't imply profitability
+- No transaction cost simulation; directional accuracy alone does not imply profitability
 - In-memory model cache resets on service restart; no persistence layer for trained models
 - Regime changes (e.g. 2020 crash) can invalidate a model trained on bull-market data
 - For production you'd move to PostgreSQL and add model versioning
