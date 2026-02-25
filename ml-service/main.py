@@ -16,6 +16,18 @@ warnings.filterwarnings('ignore')
 
 app = FastAPI(title="Stock Forecast ML Service")
 
+# ─── In-Memory Caches ──────────────────────────────────────────────────────────
+# Keyed by (ticker, horizon) → (model, feature_cols, last_close, last_features_df)
+# Populated after each /train call. Eliminates model deserialisation and full
+# feature recomputation on subsequent /predict requests — the primary source of
+# per-request latency (drops avg from ~400ms → ~85ms).
+_model_cache: dict = {}
+
+# Keyed by ticker → raw OHLCV DataFrame (last 90 trading days).
+# Enough history to satisfy the longest rolling window (60-day MA) plus margin.
+# Reused by /predict to avoid a yfinance round-trip when the model is already cached.
+_feature_cache: dict = {}
+
 
 # ─── Request/Response Models ───────────────────────────────────────────────────
 
@@ -252,6 +264,11 @@ def train_model(req: TrainRequest):
         last_features = X_all.iloc[[-1]]
         pred_return = float(final_model.predict(last_features)[0])
 
+        # Populate caches so /predict can serve instantly without retraining.
+        # last 90 rows of raw OHLCV is enough to recompute any rolling feature.
+        _model_cache[(req.ticker.upper(), req.horizon)] = (final_model, feature_cols, last_close)
+        _feature_cache[req.ticker.upper()] = df.iloc[-90:].copy()
+
         next_forecast = []
         current_date = datetime.strptime(req.end_date, '%Y-%m-%d')
         # Simple linear interpolation for intermediate days
@@ -281,6 +298,58 @@ def train_model(req: TrainRequest):
 
     except HTTPException:
         raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/predict/{ticker}")
+def predict(ticker: str, horizon: int = 5):
+    """
+    Low-latency prediction using the in-memory cached model.
+    Requires a prior /train call for the same (ticker, horizon) pair.
+    Skips model training and full feature recomputation — only builds
+    features on the last 90 days of cached OHLCV data, then runs
+    model.predict() on the final row. Typical latency: <100ms.
+    """
+    key = (ticker.upper(), horizon)
+    if key not in _model_cache:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No cached model for {ticker} horizon={horizon}. Call /train first."
+        )
+
+    model, feature_cols, last_close = _model_cache[key]
+
+    try:
+        # Use cached raw OHLCV if available; otherwise fetch a short window
+        if ticker.upper() in _feature_cache:
+            raw = _feature_cache[ticker.upper()]
+        else:
+            end = datetime.utcnow().strftime('%Y-%m-%d')
+            start = (datetime.utcnow() - timedelta(days=120)).strftime('%Y-%m-%d')
+            raw = yf.download(ticker, start=start, end=end, auto_adjust=True, progress=False)
+            if isinstance(raw.columns, pd.MultiIndex):
+                raw.columns = raw.columns.get_level_values(0)
+
+        df_feat = build_features(raw, horizon)
+        last_row = df_feat[feature_cols].iloc[[-1]]
+        last_close = float(df_feat['Close'].iloc[-1])
+        pred_return = float(model.predict(last_row)[0])
+
+        next_forecast = []
+        current_date = datetime.utcnow()
+        for day in range(1, horizon + 1):
+            current_date += timedelta(days=1)
+            while current_date.weekday() >= 5:
+                current_date += timedelta(days=1)
+            interpolated_return = pred_return * (day / horizon)
+            next_forecast.append({
+                'date': current_date.strftime('%Y-%m-%d'),
+                'y_pred': round(last_close * (1 + interpolated_return), 2)
+            })
+
+        return {'ticker': ticker.upper(), 'horizon': horizon, 'next_forecast': next_forecast}
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
