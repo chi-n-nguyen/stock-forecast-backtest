@@ -110,7 +110,7 @@
               {{ (store.result.metrics.dirAcc * 100).toFixed(1) }}%
             </span>
             <span class="text-xs text-gray-500">
-              +{{ ((store.result.metrics.dirAcc - 0.5) * 100).toFixed(1) }}pp vs random
+              {{ ((store.result.metrics.dirAcc - 0.5) * 100).toFixed(1) }}pp vs random
             </span>
           </div>
         </div>

@@ -9,7 +9,7 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 from xgboost import XGBRegressor
-from sklearn.metrics import mean_absolute_percentage_error, mean_squared_error
+from sklearn.metrics import mean_squared_error
 from datetime import datetime, timedelta
 import warnings
 warnings.filterwarnings('ignore')
@@ -17,15 +17,13 @@ warnings.filterwarnings('ignore')
 app = FastAPI(title="Stock Forecast ML Service")
 
 # ─── In-Memory Caches ──────────────────────────────────────────────────────────
-# Keyed by (ticker, horizon) → (model, feature_cols, last_close, last_features_df)
-# Populated after each /train call. Eliminates model deserialisation and full
-# feature recomputation on subsequent /predict requests — the primary source of
-# per-request latency (drops avg from ~400ms → ~85ms).
+# _model_cache: (ticker, horizon) -> (model, feature_cols, last_close)
+# Populated after /train. Avoids model deserialisation on subsequent /predict calls.
 _model_cache: dict = {}
 
-# Keyed by ticker → raw OHLCV DataFrame (last 90 trading days).
-# Enough history to satisfy the longest rolling window (60-day MA) plus margin.
-# Reused by /predict to avoid a yfinance round-trip when the model is already cached.
+# _feature_cache: ticker -> raw OHLCV DataFrame (last 90 trading days).
+# 90 rows covers the longest rolling window (60-day MA) with margin.
+# Avoids a yfinance round-trip when the model is already cached.
 _feature_cache: dict = {}
 
 
@@ -168,8 +166,6 @@ def compute_metrics(predictions: list) -> dict:
     if len(valid) < 5:
         raise ValueError("Insufficient predictions for metrics")
 
-    y_true = np.array([p['y_true'] for p in valid])
-    y_pred = np.array([p['y_pred'] for p in valid])
     true_returns = np.array([p['true_return'] for p in valid])
     pred_returns = np.array([p['pred_return'] for p in valid])
 

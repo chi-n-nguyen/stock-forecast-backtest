@@ -75,7 +75,7 @@
                 {{ (selected.metrics.dirAcc * 100).toFixed(1) }}%
               </span>
               <span class="text-xs text-gray-500">
-                +{{ ((selected.metrics.dirAcc - 0.5) * 100).toFixed(1) }}pp vs random
+                {{ ((selected.metrics.dirAcc - 0.5) * 100).toFixed(1) }}pp vs random
               </span>
             </div>
           </div>
