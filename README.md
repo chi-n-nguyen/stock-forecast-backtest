@@ -8,9 +8,10 @@ XGBoost stock forecasting with walk-forward backtesting. Built to measure model 
 - Engineers 34 features (lag returns, rolling MAs, RSI, MACD, volatility, volume ratio)
 - Trains XGBoost with **walk-forward temporal splitting** (no random k-fold, no lookahead)
 - Reports MAPE, RMSE (return basis), and directional accuracy vs 50% random baseline
+- Computes SHAP feature attribution (mean |SHAP value|) after each training run
+- Finds similar stocks via PCA on 34-feature behavioural profiles + cosine similarity across a 20-ticker universe
 - Serves predictions through a FastAPI layer with in-memory model caching (~85ms p50)
-- Stores forecast history per user in MongoDB (indexed for O(log n) history queries)
-- Auth via Google OAuth
+- Stores forecast history in MongoDB (indexed for O(log n) history queries)
 
 ## Leakage fix
 
@@ -25,10 +26,9 @@ With this fix applied, directional accuracy dropped from ~64% to ~57% and RMSE i
 | Layer | Tech |
 |-------|------|
 | Frontend | Vue 3, Tailwind CSS, Chart.js |
-| Backend | Node.js, Express, Passport.js |
-| ML service | FastAPI, XGBoost, yfinance, pandas |
+| Backend | Node.js, Express |
+| ML service | FastAPI, XGBoost, SHAP, scikit-learn, yfinance, pandas |
 | Database | MongoDB (Mongoose) |
-| Auth | Google OAuth 2.0 |
 
 ## Running locally
 
@@ -43,7 +43,7 @@ uvicorn main:app --reload --port 8000
 ```bash
 cd backend
 npm install
-cp .env.example .env   # fill in MongoDB URI + Google OAuth credentials
+cp .env.example .env   # fill in MongoDB URI
 npm run dev
 ```
 
