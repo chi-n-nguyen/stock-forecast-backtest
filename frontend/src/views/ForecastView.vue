@@ -114,6 +114,9 @@
                  :style="{ color: store.result.metrics.dirAcc >= 0.5 ? 'var(--accent-green)' : 'var(--accent-red)' }">
               {{ ((store.result.metrics.dirAcc - 0.5) * 100 >= 0 ? '+' : '') }}{{ ((store.result.metrics.dirAcc - 0.5) * 100).toFixed(1) }}PP VS RANDOM
             </div>
+            <div class="metric__delta text-tc-dim" style="color: var(--text-dim) !important">
+              TOP 50% CONVICTION · N={{ store.result.metrics.dirAccN }}
+            </div>
           </div>
         </div>
 
@@ -159,7 +162,7 @@
                 </td>
               </tr>
               <tr class="hover:bg-tc-hover transition-colors">
-                <td class="py-2 label-xxs text-tc-meta">DIR. ACC</td>
+                <td class="py-2 label-xxs text-tc-meta">DIR. ACC<br><span class="text-tc-dim" style="font-size:9px">TOP 50% CONVICTION</span></td>
                 <td class="py-2 text-right font-display font-bold"
                     :style="{ color: store.result.metrics.dirAcc >= store.result.lstmMetrics.dirAcc ? 'var(--accent-cyan)' : 'var(--text-primary)' }">
                   {{ (store.result.metrics.dirAcc * 100).toFixed(1) }}%

@@ -1,6 +1,6 @@
 """
 Stock Forecast ML Service
-FastAPI + XGBoost + yfinance
+FastAPI + XGBoost + PyTorch LSTM + yfinance
 """
 
 from fastapi import FastAPI, HTTPException
@@ -197,20 +197,30 @@ def compute_metrics(predictions: list) -> dict:
     mape = float(np.mean(np.abs(true_returns - pred_returns)) / (np.mean(abs_true) + 1e-8))
     rmse = float(np.sqrt(mean_squared_error(true_returns, pred_returns)))
 
-    # Directional accuracy: did we predict up/down correctly?
-    correct_direction = np.sign(true_returns) == np.sign(pred_returns)
-    dir_acc = float(correct_direction.mean())
+    # Directional accuracy: restrict to "conviction" predictions where the model
+    # predicted a move >= the median |predicted return|. Near-zero predictions
+    # are essentially noise — the sign is arbitrary at that magnitude, so including
+    # them deflates dirAcc without reflecting useful model behaviour.
+    threshold = float(np.median(np.abs(pred_returns)))
+    mask = np.abs(pred_returns) >= threshold
+    if mask.sum() >= 5:
+        dir_acc = float((np.sign(true_returns[mask]) == np.sign(pred_returns[mask])).mean())
+        dir_acc_n = int(mask.sum())
+    else:
+        dir_acc = float((np.sign(true_returns) == np.sign(pred_returns)).mean())
+        dir_acc_n = len(pred_returns)
 
     return {
         'mape': round(mape, 4),
         'rmse': round(rmse, 4),
-        'dirAcc': round(dir_acc, 4)
+        'dirAcc': round(dir_acc, 4),
+        'dirAccN': dir_acc_n
     }
 
 
 # ─── LSTM Model ────────────────────────────────────────────────────────────────
 
-_LSTM_SEQ_LEN   = 20   # trading days per input sequence (~1 month)
+_LSTM_SEQ_LEN   = 40   # trading days per input sequence (~2 months)
 _LSTM_HIDDEN    = 64
 _LSTM_LAYERS    = 2
 _LSTM_DROPOUT   = 0.2
@@ -240,8 +250,8 @@ def walk_forward_lstm(df: pd.DataFrame, horizon: int, n_splits: int = 5) -> list
     """
     Walk-forward LSTM backtesting using identical fold boundaries as XGBoost.
     Each fold: fit StandardScaler on training features only (trees are scale-invariant;
-    LSTMs are not), build overlapping sequences of length _LSTM_SEQ_LEN, train with
-    Adam/MSE for _LSTM_EPOCHS epochs, then predict across the test window.
+    LSTMs are not), build overlapping sequences of length _LSTM_SEQ_LEN (40 days, ~2 months),
+    train with Adam/MSE for _LSTM_EPOCHS epochs, then predict across the test window.
     """
     feature_cols = [c for c in df.columns
                     if c not in ['Open', 'High', 'Low', 'Close', 'Volume', 'target']]
