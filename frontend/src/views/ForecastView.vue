@@ -1,17 +1,20 @@
 <template>
-  <div class="min-h-screen bg-gray-950">
+  <div class="min-h-screen bg-tc-bg">
     <NavBar />
 
-    <main class="max-w-6xl mx-auto px-4 py-8 space-y-8">
+    <main class="max-w-[1200px] mx-auto px-4 py-6 space-y-px">
 
-      <!-- Stock Selector Card -->
-      <div class="card space-y-5">
-        <h2 class="text-lg font-semibold text-gray-200">Configure Forecast</h2>
+      <!-- Configure panel -->
+      <div class="panel space-y-4">
+        <div class="panel-header">
+          <span class="panel-title">CONFIGURE FORECAST</span>
+          <span class="panel-meta">WALK-FORWARD · 5-FOLD · TEMPORAL SPLIT · NO LOOKAHEAD</span>
+        </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <!-- Ticker search -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+          <!-- Ticker -->
           <div class="relative lg:col-span-1">
-            <label class="block text-xs text-gray-400 mb-1">Ticker</label>
+            <label class="label-xxs block mb-1">TICKER</label>
             <input
               v-model="tickerQuery"
               @input="onTickerInput"
@@ -21,185 +24,187 @@
               autocomplete="off"
             />
             <ul v-if="suggestions.length"
-                class="absolute z-10 mt-1 w-full bg-gray-800 border border-gray-700 rounded-lg overflow-hidden shadow-lg">
+                class="absolute z-[100] mt-px w-full bg-tc-surface border border-tc-border-hi overflow-hidden"
+                style="top:100%">
               <li v-for="s in suggestions" :key="s.ticker"
                   @mousedown.prevent="selectTicker(s)"
-                  class="flex justify-between items-center px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm">
-                <span class="font-semibold text-sky-400">{{ s.ticker }}</span>
-                <span class="text-gray-400 truncate ml-2 text-xs">{{ s.name }}</span>
+                  class="flex justify-between items-center px-3 py-2 hover:bg-tc-hover cursor-pointer">
+                <span class="font-mono font-bold text-tc-cyan text-sm">{{ s.ticker }}</span>
+                <span class="text-tc-dim text-xs truncate ml-2">{{ s.name }}</span>
               </li>
             </ul>
           </div>
 
           <!-- Time range -->
           <div>
-            <label class="block text-xs text-gray-400 mb-1">Time Range</label>
+            <label class="label-xxs block mb-1">TIME RANGE</label>
             <select v-model="timeRange" class="input-field">
-              <option value="1">1 Year</option>
-              <option value="3">3 Years</option>
-              <option value="5">5 Years</option>
+              <option value="1">1 YEAR</option>
+              <option value="3">3 YEARS</option>
+              <option value="5">5 YEARS</option>
             </select>
           </div>
 
           <!-- Horizon -->
           <div>
-            <label class="block text-xs text-gray-400 mb-1">Forecast Horizon</label>
+            <label class="label-xxs block mb-1">FORECAST HORIZON</label>
             <select v-model="horizon" class="input-field">
-              <option :value="1">1 Day</option>
-              <option :value="5">5 Days</option>
-              <option :value="20">20 Days</option>
+              <option :value="1">1 DAY</option>
+              <option :value="5">5 DAYS</option>
+              <option :value="20">20 DAYS</option>
             </select>
           </div>
 
-          <!-- Train button -->
+          <!-- Train -->
           <div class="flex items-end">
-            <button @click="trainModel" :disabled="!selectedTicker || store.loading" class="btn-primary w-full">
+            <button @click="trainModel" :disabled="!selectedTicker || store.loading" class="btn-primary">
               <span v-if="store.loading" class="flex items-center justify-center gap-2">
-                <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-                </svg>
-                Training…
+                <span class="blink text-base leading-none">▌</span>
+                TRAINING...
               </span>
-              <span v-else>Train Model</span>
+              <span v-else>RUN MODEL</span>
             </button>
           </div>
         </div>
 
-        <div class="flex items-center justify-between">
-          <p v-if="selectedTicker" class="text-xs text-gray-500">
-            {{ selectedTicker }} &bull; {{ dateRange.start }} → {{ dateRange.end }} &bull; {{ horizon }}-day horizon
-          </p>
-          <span class="text-xs text-gray-600 bg-gray-800 px-2 py-1 rounded-md ml-auto">
-            Walk-forward · 5-fold · Temporal split · No lookahead
-          </span>
-        </div>
+        <p v-if="selectedTicker" class="label-xxs text-tc-dim">
+          {{ selectedTicker }} · {{ dateRange.start }} → {{ dateRange.end }} · {{ horizon }}-DAY HORIZON
+        </p>
       </div>
 
       <!-- Error -->
-      <div v-if="store.error" class="bg-red-900/40 border border-red-700 rounded-lg px-4 py-3 text-red-300 text-sm">
-        {{ store.error }}
+      <div v-if="store.error"
+           class="panel border-tc-red"
+           style="border-color: var(--accent-red)">
+        <span class="label-xxs text-tc-red">ERR ·</span>
+        <span class="text-sm text-tc-text ml-2">{{ store.error }}</span>
       </div>
 
-      <!-- Loading skeleton -->
-      <div v-if="store.loading" class="space-y-4">
-        <div class="card h-16 animate-pulse bg-gray-800" />
-        <div class="card h-72 animate-pulse bg-gray-800" />
+      <!-- Loading -->
+      <div v-if="store.loading" class="panel py-8 flex flex-col items-center gap-3">
+        <div class="flex items-center gap-3">
+          <span class="text-tc-cyan text-xl blink">▌</span>
+          <span class="label-xs text-tc-meta">TRAINING MODEL...</span>
+        </div>
+        <span class="label-xxs text-tc-dim">WALK-FORWARD · 5-FOLD · TEMPORAL SPLIT</span>
       </div>
 
       <!-- Results -->
       <template v-if="store.result && !store.loading">
+
         <!-- Metrics row -->
-        <div class="grid grid-cols-3 gap-4">
-          <div class="metric-tile">
-            <span class="text-xs text-gray-400 uppercase tracking-wide">MAPE</span>
-            <span class="text-2xl font-bold text-sky-400">{{ (store.result.metrics.mape * 100).toFixed(2) }}%</span>
-            <span class="text-xs text-gray-500">Mean Abs % Error</span>
+        <div class="grid grid-cols-3 border border-tc-border">
+          <div class="p-5">
+            <div class="metric__label">MAPE</div>
+            <div class="metric__value">{{ (store.result.metrics.mape * 100).toFixed(2) }}%</div>
+            <div class="metric__delta">MEAN ABS % ERROR</div>
           </div>
-          <div class="metric-tile">
-            <span class="text-xs text-gray-400 uppercase tracking-wide">RMSE</span>
-            <span class="text-2xl font-bold text-emerald-400">{{ store.result.metrics.rmse.toFixed(4) }}</span>
-            <span class="text-xs text-gray-500">RMSE (return basis)</span>
+          <div class="p-5 border-l border-tc-border">
+            <div class="metric__label">RMSE</div>
+            <div class="metric__value">{{ store.result.metrics.rmse.toFixed(4) }}</div>
+            <div class="metric__delta">RETURN BASIS</div>
           </div>
-          <div class="metric-tile">
-            <span class="text-xs text-gray-400 uppercase tracking-wide">Dir. Accuracy</span>
-            <span class="text-2xl font-bold" :class="store.result.metrics.dirAcc >= 0.5 ? 'text-emerald-400' : 'text-red-400'">
+          <div class="p-5 border-l border-tc-border">
+            <div class="metric__label">DIR. ACC</div>
+            <div class="metric__value"
+                 :style="{ color: store.result.metrics.dirAcc >= 0.5 ? 'var(--accent-green)' : 'var(--accent-red)' }">
               {{ (store.result.metrics.dirAcc * 100).toFixed(1) }}%
-            </span>
-            <span class="text-xs text-gray-500">
-              {{ ((store.result.metrics.dirAcc - 0.5) * 100).toFixed(1) }}pp vs random
-            </span>
+            </div>
+            <div class="metric__delta"
+                 :style="{ color: store.result.metrics.dirAcc >= 0.5 ? 'var(--accent-green)' : 'var(--accent-red)' }">
+              {{ ((store.result.metrics.dirAcc - 0.5) * 100 >= 0 ? '+' : '') }}{{ ((store.result.metrics.dirAcc - 0.5) * 100).toFixed(1) }}PP VS RANDOM
+            </div>
           </div>
         </div>
 
-        <!-- Backtest Chart -->
-        <div class="card">
-          <div class="flex items-center justify-between mb-4">
-            <h3 class="font-semibold text-gray-200">Backtest: Actual vs Predicted</h3>
-            <span class="text-xs text-gray-500">Walk-forward 5-fold · No lookahead bias</span>
+        <!-- Backtest chart -->
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">BACKTEST — ACTUAL VS PREDICTED</span>
+            <span class="panel-meta">WALK-FORWARD 5-FOLD · NO LOOKAHEAD</span>
+          </div>
+          <div class="chart-legend">
+            <span class="chart-legend__item">
+              <span class="chart-legend__line" style="background:#e0e0e0"></span>ACTUAL
+            </span>
+            <span class="chart-legend__item">
+              <span class="chart-legend__line" style="background:#00e5ff"></span>PREDICTED
+            </span>
           </div>
           <div class="h-72">
             <BacktestChart :predictions="store.result.predictions" />
           </div>
         </div>
 
-        <!-- SHAP Feature Importance -->
-        <div v-if="store.result.featureImportance?.length" class="card">
-          <div class="flex items-center justify-between mb-4">
-            <h3 class="font-semibold text-gray-200">Feature Importance (SHAP)</h3>
-            <span class="text-xs text-gray-500">Mean |SHAP value| · top 10 · normalised</span>
+        <!-- SHAP feature importance -->
+        <div v-if="store.result.featureImportance?.length" class="panel">
+          <div class="panel-header">
+            <span class="panel-title">FEATURE IMPORTANCE — SHAP</span>
+            <span class="panel-meta">MEAN |SHAP| · TOP 10 · NORMALISED</span>
           </div>
           <div class="h-72">
             <FeatureImportanceChart :importance="store.result.featureImportance" />
           </div>
         </div>
 
-        <!-- Stock Similarity -->
-        <div class="card">
-          <div class="flex items-center justify-between mb-4">
+        <!-- Stock similarity -->
+        <div class="panel">
+          <div class="panel-header">
             <div>
-              <h3 class="font-semibold text-gray-200">Similar Stocks</h3>
-              <p class="text-xs text-gray-500 mt-0.5">
-                PCA of 34-feature behavioural profiles · cosine similarity · 20-ticker universe
-              </p>
+              <span class="panel-title">SIMILAR STOCKS</span>
+              <div class="panel-meta mt-1">PCA · 34-FEATURE BEHAVIOURAL PROFILES · COSINE SIMILARITY · 20-TICKER UNIVERSE</div>
             </div>
-            <div v-if="similarityLoading" class="text-xs text-gray-500 animate-pulse">Computing…</div>
+            <span v-if="similarityLoading" class="label-xxs text-tc-dim blink">COMPUTING...</span>
           </div>
 
-          <!-- Similar tickers list -->
-          <div v-if="similarityData" class="mb-4 flex flex-wrap gap-2">
+          <div v-if="similarityData" class="flex flex-wrap gap-2 mb-4">
             <div v-for="s in similarityData.similar" :key="s.ticker"
-                 class="flex items-center gap-2 bg-gray-800 rounded-lg px-3 py-1.5">
-              <span class="font-semibold text-indigo-400 text-sm">{{ s.ticker }}</span>
-              <span class="text-xs text-gray-400">{{ (s.similarity * 100).toFixed(1) }}%</span>
+                 class="flex items-center gap-2 border border-tc-border bg-tc-surface px-3 py-1">
+              <span class="font-mono font-bold text-tc-purple text-sm">{{ s.ticker }}</span>
+              <span class="label-xxs text-tc-dim">{{ (s.similarity * 100).toFixed(1) }}%</span>
             </div>
           </div>
 
-          <!-- Scatter plot -->
           <div class="h-80">
             <SimilarityChart v-if="similarityData" :data="similarityData" />
             <div v-else-if="!similarityLoading && similarityError"
-                 class="h-full flex items-center justify-center text-gray-600 text-sm">
+                 class="h-full flex items-center justify-center label-xs text-tc-dim">
               {{ similarityError }}
             </div>
-            <div v-else class="h-full flex items-center justify-center">
-              <div class="card h-full w-full animate-pulse bg-gray-800" />
-            </div>
+            <div v-else class="h-full bg-tc-surface animate-pulse" />
           </div>
         </div>
 
-        <!-- Next Forecast -->
-        <div class="card">
-          <h3 class="font-semibold text-gray-200 mb-4">
-            Next {{ horizon }}-Day Forecast — {{ selectedTicker }}
-          </h3>
-          <div class="h-52">
+        <!-- Next forecast -->
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">NEXT {{ horizon }}-DAY FORECAST — {{ selectedTicker }}</span>
+          </div>
+          <div class="h-48">
             <ForecastChart :data="store.result.nextForecast" />
           </div>
-          <div class="mt-4 overflow-x-auto">
-            <table class="w-full text-sm text-left">
-              <thead>
-                <tr class="text-gray-400 border-b border-gray-800">
-                  <th class="pb-2 pr-6">Date</th>
-                  <th class="pb-2">Predicted Price</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="(row, i) in store.result.nextForecast" :key="i"
-                    class="border-b border-gray-800/50 hover:bg-gray-800/30">
-                  <td class="py-2 pr-6 text-gray-400">{{ row.date }}</td>
-                  <td class="py-2 font-semibold text-sky-300">${{ row.y_pred.toFixed(2) }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          <table class="w-full mt-4 text-sm">
+            <thead>
+              <tr class="border-b border-tc-border">
+                <th class="pb-2 text-left label-xxs">DATE</th>
+                <th class="pb-2 text-left label-xxs">PREDICTED PRICE</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(row, i) in store.result.nextForecast" :key="i"
+                  class="border-b border-tc-border hover:bg-tc-hover transition-colors">
+                <td class="py-2 text-tc-meta">{{ row.date }}</td>
+                <td class="py-2 font-display font-bold text-tc-cyan">${{ row.y_pred.toFixed(2) }}</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
 
-        <!-- Info row -->
-        <p class="text-xs text-gray-600 text-center">
-          Model trained on {{ store.result.dataPoints }} data points · {{ store.result.featureCount }} features ·
-          Forecast ID: {{ store.result.forecastId }}
-        </p>
+        <!-- Footer -->
+        <div class="py-3 text-center label-xxs text-tc-dim">
+          {{ store.result.dataPoints }} DATA POINTS · {{ store.result.featureCount }} FEATURES · ID {{ store.result.forecastId }}
+        </div>
+
       </template>
 
     </main>
@@ -271,7 +276,7 @@ async function fetchSimilarity(ticker) {
     const res = await axios.get(`/stocks/${ticker}/similarity`, { withCredentials: true })
     similarityData.value = res.data
   } catch (err) {
-    similarityError.value = err.response?.data?.error || 'Could not load similarity data'
+    similarityError.value = err.response?.data?.error || 'SIMILARITY UNAVAILABLE'
   } finally {
     similarityLoading.value = false
   }
@@ -285,8 +290,6 @@ async function trainModel() {
     endDate: dateRange.value.end,
     horizon: Number(horizon.value)
   })
-  if (store.result) {
-    fetchSimilarity(selectedTicker.value)
-  }
+  if (store.result) fetchSimilarity(selectedTicker.value)
 }
 </script>

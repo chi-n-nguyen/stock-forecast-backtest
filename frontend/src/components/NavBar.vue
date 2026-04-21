@@ -1,20 +1,24 @@
 <template>
-  <nav class="border-b border-gray-800 bg-gray-950/80 backdrop-blur sticky top-0 z-40">
-    <div class="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
-      <router-link to="/" class="text-sky-400 font-bold text-lg tracking-tight">StockCast</router-link>
+  <nav class="bg-tc-bg border-b border-tc-border sticky top-0 z-40" style="height:48px">
+    <div class="max-w-[1200px] mx-auto px-4 h-full flex items-center justify-between">
+
+      <router-link to="/" class="font-display font-bold text-tc-cyan tracking-wider text-base">
+        STOCKCAST
+      </router-link>
 
       <div class="flex items-center gap-6">
         <router-link to="/"
-          class="text-sm font-medium transition-colors"
-          :class="route.path === '/' ? 'text-sky-400' : 'text-gray-400 hover:text-gray-200'">
-          Forecast
+          class="label-xs transition-colors"
+          :class="route.path === '/' ? 'text-tc-cyan border-b-2 border-tc-cyan pb-px' : 'text-tc-meta hover:text-tc-text'">
+          FORECAST
         </router-link>
         <router-link to="/history"
-          class="text-sm font-medium transition-colors"
-          :class="route.path === '/history' ? 'text-sky-400' : 'text-gray-400 hover:text-gray-200'">
-          History
+          class="label-xs transition-colors"
+          :class="route.path === '/history' ? 'text-tc-cyan border-b-2 border-tc-cyan pb-px' : 'text-tc-meta hover:text-tc-text'">
+          HISTORY
         </router-link>
       </div>
+
     </div>
   </nav>
 </template>

@@ -23,7 +23,6 @@ const props = defineProps({
   predictions: { type: Array, required: true }
 })
 
-// Downsample to max 200 points for rendering performance
 const sampled = computed(() => {
   const p = props.predictions
   if (p.length <= 200) return p
@@ -37,21 +36,20 @@ const chartData = computed(() => ({
     {
       label: 'Actual',
       data: sampled.value.map(p => p.y_true),
-      borderColor: '#94a3b8',
+      borderColor: '#e0e0e0',
       backgroundColor: 'transparent',
       borderWidth: 1.5,
       pointRadius: 0,
-      tension: 0.2
+      tension: 0.1
     },
     {
       label: 'Predicted',
       data: sampled.value.map(p => p.y_pred),
-      borderColor: '#38bdf8',
-      backgroundColor: 'rgba(56,189,248,0.08)',
+      borderColor: '#00e5ff',
+      backgroundColor: 'transparent',
       borderWidth: 1.5,
       pointRadius: 0,
-      tension: 0.2,
-      fill: false
+      tension: 0.1
     }
   ]
 }))
@@ -61,26 +59,32 @@ const chartOptions = {
   maintainAspectRatio: false,
   interaction: { mode: 'index', intersect: false },
   plugins: {
-    legend: {
-      labels: { color: '#9ca3af', font: { size: 11 }, boxWidth: 16 }
-    },
+    legend: { display: false },
     tooltip: {
-      backgroundColor: '#1f2937',
-      titleColor: '#e5e7eb',
-      bodyColor: '#d1d5db',
+      backgroundColor: '#1a1a1a',
+      borderColor: '#444444',
+      borderWidth: 1,
+      titleColor: '#888888',
+      bodyColor: '#e0e0e0',
+      padding: 10,
+      cornerRadius: 0,
+      titleFont: { family: "'IBM Plex Mono', monospace", size: 10 },
+      bodyFont: { family: "'IBM Plex Mono', monospace", size: 11 },
       callbacks: {
-        label: ctx => `${ctx.dataset.label}: $${ctx.parsed.y?.toFixed(2)}`
+        label: ctx => `${ctx.dataset.label.toUpperCase()}: $${ctx.parsed.y?.toFixed(2)}`
       }
     }
   },
   scales: {
     x: {
-      ticks: { color: '#6b7280', maxTicksLimit: 8, maxRotation: 0 },
-      grid: { color: '#1f2937' }
+      ticks: { color: '#555555', maxTicksLimit: 8, maxRotation: 0, font: { size: 10 } },
+      grid: { color: '#1e1e1e', drawBorder: false },
+      border: { color: '#2a2a2a' }
     },
     y: {
-      ticks: { color: '#6b7280', callback: v => `$${v.toFixed(0)}` },
-      grid: { color: '#1f2937' }
+      ticks: { color: '#555555', callback: v => `$${v.toFixed(0)}`, font: { size: 10 } },
+      grid: { color: '#1e1e1e', drawBorder: false },
+      border: { color: '#2a2a2a' }
     }
   }
 }

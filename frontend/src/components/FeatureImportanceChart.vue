@@ -10,18 +10,16 @@ import {
   CategoryScale,
   LinearScale,
   BarElement,
-  Title,
   Tooltip,
   Legend
 } from 'chart.js'
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
+ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend)
 
 const props = defineProps({
   importance: { type: Array, required: true }
 })
 
-// Top 10 features, already sorted descending by importance from backend
 const top10 = computed(() => props.importance.slice(0, 10))
 
 const chartData = computed(() => ({
@@ -30,10 +28,8 @@ const chartData = computed(() => ({
     {
       label: 'Mean |SHAP|',
       data: top10.value.map(d => d.importance),
-      backgroundColor: top10.value.map((_, i) =>
-        i === 0 ? '#38bdf8' : i < 3 ? '#818cf8' : '#334155'
-      ),
-      borderRadius: 4,
+      backgroundColor: '#00e5ff',
+      borderRadius: 0,
       borderSkipped: false
     }
   ]
@@ -46,25 +42,34 @@ const chartOptions = {
   plugins: {
     legend: { display: false },
     tooltip: {
-      backgroundColor: '#1f2937',
-      titleColor: '#e5e7eb',
-      bodyColor: '#d1d5db',
+      backgroundColor: '#1a1a1a',
+      borderColor: '#444444',
+      borderWidth: 1,
+      titleColor: '#888888',
+      bodyColor: '#e0e0e0',
+      padding: 10,
+      cornerRadius: 0,
+      titleFont: { family: "'IBM Plex Mono', monospace", size: 10 },
+      bodyFont: { family: "'IBM Plex Mono', monospace", size: 11 },
       callbacks: {
-        label: ctx => `${(ctx.parsed.x * 100).toFixed(2)}% of total SHAP`
+        label: ctx => `${(ctx.parsed.x * 100).toFixed(2)}% OF TOTAL SHAP`
       }
     }
   },
   scales: {
     x: {
       ticks: {
-        color: '#6b7280',
-        callback: v => `${(v * 100).toFixed(1)}%`
+        color: '#555555',
+        callback: v => `${(v * 100).toFixed(1)}%`,
+        font: { size: 10 }
       },
-      grid: { color: '#1f2937' }
+      grid: { color: '#1e1e1e', drawBorder: false },
+      border: { color: '#2a2a2a' }
     },
     y: {
-      ticks: { color: '#9ca3af', font: { size: 11 } },
-      grid: { display: false }
+      ticks: { color: '#888888', font: { size: 10 } },
+      grid: { display: false },
+      border: { color: '#2a2a2a' }
     }
   }
 }

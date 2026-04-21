@@ -28,12 +28,13 @@ const chartData = computed(() => ({
     {
       label: 'Forecast',
       data: props.data.map(d => d.y_pred),
-      borderColor: '#f59e0b',
-      backgroundColor: 'rgba(245,158,11,0.12)',
-      borderWidth: 2,
-      pointBackgroundColor: '#f59e0b',
-      pointRadius: 4,
-      tension: 0.3,
+      borderColor: '#00e5ff',
+      backgroundColor: 'rgba(0, 229, 255, 0.05)',
+      borderWidth: 1.5,
+      pointBackgroundColor: '#00e5ff',
+      pointRadius: 3,
+      pointHoverRadius: 5,
+      tension: 0.1,
       fill: true
     }
   ]
@@ -43,26 +44,32 @@ const chartOptions = {
   responsive: true,
   maintainAspectRatio: false,
   plugins: {
-    legend: {
-      labels: { color: '#9ca3af', font: { size: 11 }, boxWidth: 16 }
-    },
+    legend: { display: false },
     tooltip: {
-      backgroundColor: '#1f2937',
-      titleColor: '#e5e7eb',
-      bodyColor: '#d1d5db',
+      backgroundColor: '#1a1a1a',
+      borderColor: '#444444',
+      borderWidth: 1,
+      titleColor: '#888888',
+      bodyColor: '#e0e0e0',
+      padding: 10,
+      cornerRadius: 0,
+      titleFont: { family: "'IBM Plex Mono', monospace", size: 10 },
+      bodyFont: { family: "'IBM Plex Mono', monospace", size: 11 },
       callbacks: {
-        label: ctx => `Predicted: $${ctx.parsed.y?.toFixed(2)}`
+        label: ctx => `FORECAST: $${ctx.parsed.y?.toFixed(2)}`
       }
     }
   },
   scales: {
     x: {
-      ticks: { color: '#6b7280', maxRotation: 0 },
-      grid: { color: '#1f2937' }
+      ticks: { color: '#555555', maxRotation: 0, font: { size: 10 } },
+      grid: { color: '#1e1e1e', drawBorder: false },
+      border: { color: '#2a2a2a' }
     },
     y: {
-      ticks: { color: '#6b7280', callback: v => `$${v.toFixed(0)}` },
-      grid: { color: '#1f2937' }
+      ticks: { color: '#555555', callback: v => `$${v.toFixed(0)}`, font: { size: 10 } },
+      grid: { color: '#1e1e1e', drawBorder: false },
+      border: { color: '#2a2a2a' }
     }
   }
 }

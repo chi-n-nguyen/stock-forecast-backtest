@@ -19,14 +19,12 @@ const props = defineProps({
   data: { type: Object, required: true }
 })
 
-// Set of top-5 similar ticker strings for fast lookup
 const similarSet = computed(() => new Set(props.data.similar.map(s => s.ticker)))
 
 const chartData = computed(() => {
   const all = props.data.all_tickers
   const query = props.data.query
   const top5 = props.data.similar
-
   const universe = all.filter(t => t.ticker !== query.ticker && !similarSet.value.has(t.ticker))
 
   return {
@@ -34,23 +32,23 @@ const chartData = computed(() => {
       {
         label: 'Universe',
         data: universe.map(t => ({ x: t.x, y: t.y, ticker: t.ticker })),
-        backgroundColor: '#334155',
-        pointRadius: 6,
-        pointHoverRadius: 8
+        backgroundColor: '#444444',
+        pointRadius: 5,
+        pointHoverRadius: 7
       },
       {
         label: 'Similar',
         data: top5.map(t => ({ x: t.x, y: t.y, ticker: t.ticker, similarity: t.similarity })),
-        backgroundColor: '#818cf8',
-        pointRadius: 8,
-        pointHoverRadius: 10
+        backgroundColor: '#b388ff',
+        pointRadius: 7,
+        pointHoverRadius: 9
       },
       {
         label: props.data.ticker,
         data: [{ x: query.x, y: query.y, ticker: query.ticker }],
-        backgroundColor: '#38bdf8',
-        pointRadius: 11,
-        pointHoverRadius: 13
+        backgroundColor: '#00e5ff',
+        pointRadius: 10,
+        pointHoverRadius: 12
       }
     ]
   }
@@ -61,16 +59,27 @@ const chartOptions = {
   maintainAspectRatio: false,
   plugins: {
     legend: {
-      labels: { color: '#9ca3af', font: { size: 11 }, boxWidth: 12 }
+      labels: {
+        color: '#555555',
+        font: { family: "'IBM Plex Mono', monospace", size: 10 },
+        boxWidth: 8,
+        padding: 16
+      }
     },
     tooltip: {
-      backgroundColor: '#1f2937',
-      titleColor: '#e5e7eb',
-      bodyColor: '#d1d5db',
+      backgroundColor: '#1a1a1a',
+      borderColor: '#444444',
+      borderWidth: 1,
+      titleColor: '#888888',
+      bodyColor: '#e0e0e0',
+      padding: 10,
+      cornerRadius: 0,
+      titleFont: { family: "'IBM Plex Mono', monospace", size: 10 },
+      bodyFont: { family: "'IBM Plex Mono', monospace", size: 11 },
       callbacks: {
         label: ctx => {
           const pt = ctx.raw
-          const sim = pt.similarity != null ? ` · similarity ${(pt.similarity * 100).toFixed(1)}%` : ''
+          const sim = pt.similarity != null ? ` · ${(pt.similarity * 100).toFixed(1)}% SIMILAR` : ''
           return `${pt.ticker}${sim}`
         }
       }
@@ -78,25 +87,26 @@ const chartOptions = {
   },
   scales: {
     x: {
-      ticks: { color: '#4b5563', maxTicksLimit: 5 },
-      grid: { color: '#1f2937' },
-      title: { display: true, text: 'PC 1', color: '#6b7280', font: { size: 11 } }
+      ticks: { color: '#555555', maxTicksLimit: 5, font: { size: 10 } },
+      grid: { color: '#1e1e1e', drawBorder: false },
+      border: { color: '#2a2a2a' },
+      title: { display: true, text: 'PC 1', color: '#555555', font: { family: "'IBM Plex Mono', monospace", size: 10 } }
     },
     y: {
-      ticks: { color: '#4b5563', maxTicksLimit: 5 },
-      grid: { color: '#1f2937' },
-      title: { display: true, text: 'PC 2', color: '#6b7280', font: { size: 11 } }
+      ticks: { color: '#555555', maxTicksLimit: 5, font: { size: 10 } },
+      grid: { color: '#1e1e1e', drawBorder: false },
+      border: { color: '#2a2a2a' },
+      title: { display: true, text: 'PC 2', color: '#555555', font: { family: "'IBM Plex Mono', monospace", size: 10 } }
     }
   }
 }
 
-// Inline Chart.js plugin that draws ticker labels next to each point
 const labelPlugin = {
   id: 'tickerLabels',
   afterDatasetsDraw(chart) {
     const ctx = chart.ctx
     ctx.save()
-    ctx.font = '11px ui-monospace, monospace'
+    ctx.font = "10px 'IBM Plex Mono', monospace"
     ctx.textBaseline = 'middle'
 
     chart.data.datasets.forEach((dataset, di) => {
@@ -104,9 +114,7 @@ const labelPlugin = {
       meta.data.forEach((point, pi) => {
         const raw = dataset.data[pi]
         if (!raw?.ticker) return
-        const isQuery = di === 2
-        const isSimilar = di === 1
-        ctx.fillStyle = isQuery ? '#38bdf8' : isSimilar ? '#a5b4fc' : '#6b7280'
+        ctx.fillStyle = di === 2 ? '#00e5ff' : di === 1 ? '#b388ff' : '#555555'
         ctx.fillText(raw.ticker, point.x + 9, point.y)
       })
     })
