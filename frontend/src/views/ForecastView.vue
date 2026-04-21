@@ -1,6 +1,5 @@
 <template>
   <div class="min-h-screen bg-gray-950">
-    <!-- Nav -->
     <NavBar />
 
     <main class="max-w-6xl mx-auto px-4 py-8 space-y-8">
@@ -21,7 +20,6 @@
               placeholder="AAPL, TSLA…"
               autocomplete="off"
             />
-            <!-- Suggestions dropdown -->
             <ul v-if="suggestions.length"
                 class="absolute z-10 mt-1 w-full bg-gray-800 border border-gray-700 rounded-lg overflow-hidden shadow-lg">
               <li v-for="s in suggestions" :key="s.ticker"
@@ -68,7 +66,6 @@
           </div>
         </div>
 
-        <!-- Training config summary -->
         <div class="flex items-center justify-between">
           <p v-if="selectedTicker" class="text-xs text-gray-500">
             {{ selectedTicker }} &bull; {{ dateRange.start }} → {{ dateRange.end }} &bull; {{ horizon }}-day horizon
@@ -137,6 +134,40 @@
           </div>
         </div>
 
+        <!-- Stock Similarity -->
+        <div class="card">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h3 class="font-semibold text-gray-200">Similar Stocks</h3>
+              <p class="text-xs text-gray-500 mt-0.5">
+                PCA of 34-feature behavioural profiles · cosine similarity · 20-ticker universe
+              </p>
+            </div>
+            <div v-if="similarityLoading" class="text-xs text-gray-500 animate-pulse">Computing…</div>
+          </div>
+
+          <!-- Similar tickers list -->
+          <div v-if="similarityData" class="mb-4 flex flex-wrap gap-2">
+            <div v-for="s in similarityData.similar" :key="s.ticker"
+                 class="flex items-center gap-2 bg-gray-800 rounded-lg px-3 py-1.5">
+              <span class="font-semibold text-indigo-400 text-sm">{{ s.ticker }}</span>
+              <span class="text-xs text-gray-400">{{ (s.similarity * 100).toFixed(1) }}%</span>
+            </div>
+          </div>
+
+          <!-- Scatter plot -->
+          <div class="h-80">
+            <SimilarityChart v-if="similarityData" :data="similarityData" />
+            <div v-else-if="!similarityLoading && similarityError"
+                 class="h-full flex items-center justify-center text-gray-600 text-sm">
+              {{ similarityError }}
+            </div>
+            <div v-else class="h-full flex items-center justify-center">
+              <div class="card h-full w-full animate-pulse bg-gray-800" />
+            </div>
+          </div>
+        </div>
+
         <!-- Next Forecast -->
         <div class="card">
           <h3 class="font-semibold text-gray-200 mb-4">
@@ -182,6 +213,7 @@ import NavBar from '../components/NavBar.vue'
 import BacktestChart from '../components/BacktestChart.vue'
 import ForecastChart from '../components/ForecastChart.vue'
 import FeatureImportanceChart from '../components/FeatureImportanceChart.vue'
+import SimilarityChart from '../components/SimilarityChart.vue'
 import axios from 'axios'
 
 const store = useForecastStore()
@@ -191,6 +223,10 @@ const selectedTicker = ref('')
 const suggestions = ref([])
 const timeRange = ref('5')
 const horizon = ref(5)
+
+const similarityData = ref(null)
+const similarityLoading = ref(false)
+const similarityError = ref(null)
 
 let searchTimeout = null
 
@@ -227,6 +263,20 @@ const dateRange = computed(() => {
   return { start: fmt(start), end: fmt(end) }
 })
 
+async function fetchSimilarity(ticker) {
+  similarityData.value = null
+  similarityError.value = null
+  similarityLoading.value = true
+  try {
+    const res = await axios.get(`/stocks/${ticker}/similarity`, { withCredentials: true })
+    similarityData.value = res.data
+  } catch (err) {
+    similarityError.value = err.response?.data?.error || 'Could not load similarity data'
+  } finally {
+    similarityLoading.value = false
+  }
+}
+
 async function trainModel() {
   if (!selectedTicker.value) return
   await store.train({
@@ -235,5 +285,8 @@ async function trainModel() {
     endDate: dateRange.value.end,
     horizon: Number(horizon.value)
   })
+  if (store.result) {
+    fetchSimilarity(selectedTicker.value)
+  }
 }
 </script>

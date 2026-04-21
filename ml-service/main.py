@@ -10,7 +10,10 @@ import pandas as pd
 import numpy as np
 from xgboost import XGBRegressor
 from sklearn.metrics import mean_squared_error
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
 import shap
+import time
 from datetime import datetime, timedelta
 import warnings
 warnings.filterwarnings('ignore')
@@ -26,6 +29,16 @@ _model_cache: dict = {}
 # 90 rows covers the longest rolling window (60-day MA) with margin.
 # Avoids a yfinance round-trip when the model is already cached.
 _feature_cache: dict = {}
+
+# _similarity_cache: ticker -> (timestamp, result). TTL = 24 hours.
+_similarity_cache: dict = {}
+_SIMILARITY_TTL = 86400
+
+UNIVERSE = [
+    'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'TSLA', 'NVDA', 'NFLX',
+    'AMD', 'INTC', 'JPM', 'BAC', 'WMT', 'DIS', 'PYPL', 'CRM', 'UBER',
+    'SPOT', 'SQ', 'COIN'
+]
 
 
 # ─── Request/Response Models ───────────────────────────────────────────────────
@@ -360,6 +373,106 @@ def predict(ticker: str, horizon: int = 5):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/similarity/{ticker}")
+def get_similarity(ticker: str):
+    """
+    Cluster the 20-ticker universe by technical feature profiles and return
+    the tickers most similar to `ticker` using cosine similarity.
+
+    Pipeline:
+      1. Batch-download 1 year of OHLCV for all tickers via yfinance.
+      2. Build the same 34 features used for forecasting.
+      3. Represent each ticker as the mean of its feature vector over the
+         last 60 trading days — a stable behavioural "fingerprint".
+      4. StandardScale across tickers so no feature dominates by magnitude.
+      5. PCA to 2D for scatter-plot visualisation.
+      6. Cosine similarity in the scaled space to rank neighbours.
+
+    Results are cached in memory for 24 hours to avoid redundant fetches.
+    """
+    ticker = ticker.upper()
+
+    cached = _similarity_cache.get(ticker)
+    if cached and time.time() - cached[0] < _SIMILARITY_TTL:
+        return cached[1]
+
+    end = datetime.utcnow()
+    start = end - timedelta(days=400)  # extra buffer for rolling-window warmup
+
+    raw = yf.download(
+        UNIVERSE,
+        start=start.strftime('%Y-%m-%d'),
+        end=end.strftime('%Y-%m-%d'),
+        auto_adjust=True,
+        progress=False
+    )
+
+    profiles = {}
+    for t in UNIVERSE:
+        try:
+            if isinstance(raw.columns, pd.MultiIndex):
+                df_t = raw.xs(t, axis=1, level=1).dropna()
+            else:
+                df_t = raw.copy().dropna()
+
+            if len(df_t) < 80:
+                continue
+
+            df_feat = build_features(df_t.copy(), horizon=5)
+            feature_cols = [c for c in df_feat.columns
+                            if c not in ['Open', 'High', 'Low', 'Close', 'Volume', 'target']]
+            # Mean over last 60 rows = stable behavioural fingerprint
+            profiles[t] = df_feat[feature_cols].iloc[-60:].mean().values
+        except Exception:
+            continue
+
+    if ticker not in profiles:
+        raise HTTPException(status_code=404, detail=f"Could not build profile for {ticker}")
+
+    tickers_list = list(profiles.keys())
+    X = np.array([profiles[t] for t in tickers_list])
+
+    X_scaled = StandardScaler().fit_transform(X)
+
+    pca = PCA(n_components=2)
+    X_2d = pca.fit_transform(X_scaled)
+
+    query_idx = tickers_list.index(ticker)
+    query_vec = X_scaled[query_idx]
+
+    norms = np.linalg.norm(X_scaled, axis=1) + 1e-10
+    cos_sims = X_scaled @ query_vec / (norms * np.linalg.norm(query_vec) + 1e-10)
+
+    similar = []
+    for i, t in enumerate(tickers_list):
+        if t == ticker:
+            continue
+        similar.append({
+            'ticker': t,
+            'similarity': round(float(cos_sims[i]), 4),
+            'x': round(float(X_2d[i][0]), 4),
+            'y': round(float(X_2d[i][1]), 4)
+        })
+    similar.sort(key=lambda s: s['similarity'], reverse=True)
+
+    result = {
+        'ticker': ticker,
+        'query': {
+            'ticker': ticker,
+            'x': round(float(X_2d[query_idx][0]), 4),
+            'y': round(float(X_2d[query_idx][1]), 4)
+        },
+        'similar': similar[:5],
+        'all_tickers': [
+            {'ticker': t, 'x': round(float(X_2d[i][0]), 4), 'y': round(float(X_2d[i][1]), 4)}
+            for i, t in enumerate(tickers_list)
+        ]
+    }
+
+    _similarity_cache[ticker] = (time.time(), result)
+    return result
 
 
 @app.get("/health")

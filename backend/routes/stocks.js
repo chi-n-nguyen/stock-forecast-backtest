@@ -37,6 +37,18 @@ router.get('/search', (req, res) => {
   res.json(results);
 });
 
+// GET /stocks/:ticker/similarity
+router.get('/:ticker/similarity', async (req, res) => {
+  const ticker = req.params.ticker.toUpperCase();
+  try {
+    const response = await axios.get(`${ML_URL}/similarity/${ticker}`, { timeout: 60000 });
+    res.json(response.data);
+  } catch (err) {
+    const detail = err.response?.data?.detail || err.message;
+    res.status(500).json({ error: detail });
+  }
+});
+
 // GET /stocks/:ticker/prices?start=YYYY-MM-DD&end=YYYY-MM-DD
 router.get('/:ticker/prices', async (req, res) => {
   const ticker = req.params.ticker.toUpperCase();
