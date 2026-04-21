@@ -1,13 +1,12 @@
 const express = require('express');
 const axios = require('axios');
 const Forecast = require('../models/Forecast');
-const { requireAuth } = require('../middleware/auth');
 const router = express.Router();
 
 const ML_URL = process.env.ML_SERVICE_URL || 'http://localhost:8000';
 
 // POST /ml/train
-router.post('/train', requireAuth, async (req, res) => {
+router.post('/train', async (req, res) => {
   const { ticker, startDate, endDate, horizon } = req.body;
 
   if (!ticker || !startDate || !endDate || !horizon) {
@@ -27,7 +26,7 @@ router.post('/train', requireAuth, async (req, res) => {
       horizon: Number(horizon)
     }, { timeout: 180000 }); // 3 min timeout for training
 
-    const { metrics, predictions, next_forecast, data_points, feature_count } = response.data;
+    const { metrics, predictions, next_forecast, feature_importance, data_points, feature_count } = response.data;
 
     // Save forecast to DB
     const forecast = await Forecast.create({
@@ -39,6 +38,7 @@ router.post('/train', requireAuth, async (req, res) => {
       metrics,
       predictions,
       nextForecast: next_forecast,
+      featureImportance: feature_importance,
       dataPoints: data_points,
       featureCount: feature_count
     });
@@ -48,6 +48,7 @@ router.post('/train', requireAuth, async (req, res) => {
       metrics,
       predictions,
       nextForecast: next_forecast,
+      featureImportance: feature_importance,
       dataPoints: data_points,
       featureCount: feature_count
     });

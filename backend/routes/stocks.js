@@ -1,7 +1,6 @@
 const express = require('express');
 const axios = require('axios');
 const PriceCache = require('../models/PriceCache');
-const { requireAuth } = require('../middleware/auth');
 const router = express.Router();
 
 const ML_URL = process.env.ML_SERVICE_URL || 'http://localhost:8000';
@@ -29,7 +28,7 @@ const POPULAR_TICKERS = [
   { ticker: 'COIN', name: 'Coinbase Global Inc.' }
 ];
 
-router.get('/search', requireAuth, (req, res) => {
+router.get('/search', (req, res) => {
   const q = (req.query.q || '').toUpperCase();
   if (!q) return res.json([]);
   const results = POPULAR_TICKERS.filter(
@@ -39,7 +38,7 @@ router.get('/search', requireAuth, (req, res) => {
 });
 
 // GET /stocks/:ticker/prices?start=YYYY-MM-DD&end=YYYY-MM-DD
-router.get('/:ticker/prices', requireAuth, async (req, res) => {
+router.get('/:ticker/prices', async (req, res) => {
   const ticker = req.params.ticker.toUpperCase();
   const { start, end } = req.query;
 

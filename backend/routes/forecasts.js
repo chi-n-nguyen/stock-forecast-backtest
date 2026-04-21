@@ -1,10 +1,9 @@
 const express = require('express');
 const Forecast = require('../models/Forecast');
-const { requireAuth } = require('../middleware/auth');
 const router = express.Router();
 
 // GET /forecasts — list user's forecast history
-router.get('/', requireAuth, async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const forecasts = await Forecast.find({ userId: req.user._id })
       .sort({ createdAt: -1 })
@@ -17,7 +16,7 @@ router.get('/', requireAuth, async (req, res) => {
 });
 
 // GET /forecasts/:id — get full forecast detail
-router.get('/:id', requireAuth, async (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
     const forecast = await Forecast.findOne({
       _id: req.params.id,

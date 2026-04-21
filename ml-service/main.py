@@ -10,6 +10,7 @@ import pandas as pd
 import numpy as np
 from xgboost import XGBRegressor
 from sklearn.metrics import mean_squared_error
+import shap
 from datetime import datetime, timedelta
 import warnings
 warnings.filterwarnings('ignore')
@@ -255,6 +256,16 @@ def train_model(req: TrainRequest):
         y_all = df_features['target']
         final_model.fit(X_all, y_all, verbose=False)
 
+        # 6. SHAP feature importance (mean |SHAP value| across all training rows)
+        explainer = shap.TreeExplainer(final_model)
+        shap_values = explainer.shap_values(X_all)
+        mean_abs_shap = np.abs(shap_values).mean(axis=0)
+        total = mean_abs_shap.sum() + 1e-10
+        feature_importance = [
+            {'feature': col, 'importance': round(float(v / total), 4)}
+            for col, v in sorted(zip(feature_cols, mean_abs_shap), key=lambda x: x[1], reverse=True)
+        ]
+
         # Generate next-horizon predictions
         last_close = float(df['Close'].iloc[-1])
         last_features = X_all.iloc[[-1]]
@@ -288,6 +299,7 @@ def train_model(req: TrainRequest):
             'metrics': metrics,
             'predictions': clean_predictions,
             'next_forecast': next_forecast,
+            'feature_importance': feature_importance,
             'data_points': len(df_features),
             'feature_count': len(feature_cols)
         }

@@ -126,6 +126,17 @@
           </div>
         </div>
 
+        <!-- SHAP Feature Importance -->
+        <div v-if="store.result.featureImportance?.length" class="card">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="font-semibold text-gray-200">Feature Importance (SHAP)</h3>
+            <span class="text-xs text-gray-500">Mean |SHAP value| · top 10 · normalised</span>
+          </div>
+          <div class="h-72">
+            <FeatureImportanceChart :importance="store.result.featureImportance" />
+          </div>
+        </div>
+
         <!-- Next Forecast -->
         <div class="card">
           <h3 class="font-semibold text-gray-200 mb-4">
@@ -170,6 +181,7 @@ import { useForecastStore } from '../stores/forecast'
 import NavBar from '../components/NavBar.vue'
 import BacktestChart from '../components/BacktestChart.vue'
 import ForecastChart from '../components/ForecastChart.vue'
+import FeatureImportanceChart from '../components/FeatureImportanceChart.vue'
 import axios from 'axios'
 
 const store = useForecastStore()
