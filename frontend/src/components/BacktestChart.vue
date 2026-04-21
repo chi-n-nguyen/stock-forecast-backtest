@@ -20,7 +20,8 @@ import {
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler)
 
 const props = defineProps({
-  predictions: { type: Array, required: true }
+  predictions:     { type: Array, required: true },
+  lstmPredictions: { type: Array, default: null }
 })
 
 const sampled = computed(() => {
@@ -30,9 +31,16 @@ const sampled = computed(() => {
   return p.filter((_, i) => i % step === 0)
 })
 
-const chartData = computed(() => ({
-  labels: sampled.value.map(p => p.date),
-  datasets: [
+const sampledLstm = computed(() => {
+  if (!props.lstmPredictions) return null
+  const p = props.lstmPredictions
+  if (p.length <= 200) return p
+  const step = Math.floor(p.length / 200)
+  return p.filter((_, i) => i % step === 0)
+})
+
+const chartData = computed(() => {
+  const datasets = [
     {
       label: 'Actual',
       data: sampled.value.map(p => p.y_true),
@@ -43,7 +51,7 @@ const chartData = computed(() => ({
       tension: 0.1
     },
     {
-      label: 'Predicted',
+      label: 'XGBoost',
       data: sampled.value.map(p => p.y_pred),
       borderColor: '#00e5ff',
       backgroundColor: 'transparent',
@@ -52,7 +60,21 @@ const chartData = computed(() => ({
       tension: 0.1
     }
   ]
-}))
+
+  if (sampledLstm.value) {
+    datasets.push({
+      label: 'LSTM',
+      data: sampledLstm.value.map(p => p.y_pred),
+      borderColor: '#b388ff',
+      backgroundColor: 'transparent',
+      borderWidth: 1.5,
+      pointRadius: 0,
+      tension: 0.1
+    })
+  }
+
+  return { labels: sampled.value.map(p => p.date), datasets }
+})
 
 const chartOptions = {
   responsive: true,

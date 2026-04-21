@@ -15,6 +15,8 @@ const forecastSchema = new mongoose.Schema({
   predictions: [{ date: String, y_true: Number, y_pred: Number }],
   nextForecast: [{ date: String, y_pred: Number }],
   featureImportance: [{ feature: String, importance: Number }],
+  lstmMetrics: { mape: Number, rmse: Number, dirAcc: Number },
+  lstmPredictions: [{ date: String, y_true: Number, y_pred: Number }],
   dataPoints: Number,
   featureCount: Number
 }, { timestamps: true });

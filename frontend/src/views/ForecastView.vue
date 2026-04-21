@@ -117,6 +117,64 @@
           </div>
         </div>
 
+        <!-- Model comparison table -->
+        <div class="panel" v-if="store.result.lstmMetrics">
+          <div class="panel-header">
+            <span class="panel-title">MODEL COMPARISON</span>
+            <span class="panel-meta">WALK-FORWARD 5-FOLD · IDENTICAL SPLITS · FAIR EVALUATION</span>
+          </div>
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-tc-border">
+                <th class="pb-2 text-left label-xxs w-1/3">METRIC</th>
+                <th class="pb-2 text-right label-xxs text-tc-cyan">XGBOOST</th>
+                <th class="pb-2 text-right label-xxs text-tc-purple">LSTM</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="border-b border-tc-border hover:bg-tc-hover transition-colors">
+                <td class="py-2 label-xxs text-tc-meta">MAPE</td>
+                <td class="py-2 text-right font-display font-bold"
+                    :class="store.result.metrics.mape <= store.result.lstmMetrics.mape ? 'text-tc-cyan' : 'text-tc-text'">
+                  {{ (store.result.metrics.mape * 100).toFixed(2) }}%
+                  <span v-if="store.result.metrics.mape <= store.result.lstmMetrics.mape" class="text-tc-dim ml-1">↓</span>
+                </td>
+                <td class="py-2 text-right font-display font-bold"
+                    :class="store.result.lstmMetrics.mape < store.result.metrics.mape ? 'text-tc-purple' : 'text-tc-text'">
+                  {{ (store.result.lstmMetrics.mape * 100).toFixed(2) }}%
+                  <span v-if="store.result.lstmMetrics.mape < store.result.metrics.mape" class="text-tc-dim ml-1">↓</span>
+                </td>
+              </tr>
+              <tr class="border-b border-tc-border hover:bg-tc-hover transition-colors">
+                <td class="py-2 label-xxs text-tc-meta">RMSE</td>
+                <td class="py-2 text-right font-display font-bold"
+                    :class="store.result.metrics.rmse <= store.result.lstmMetrics.rmse ? 'text-tc-cyan' : 'text-tc-text'">
+                  {{ store.result.metrics.rmse.toFixed(4) }}
+                  <span v-if="store.result.metrics.rmse <= store.result.lstmMetrics.rmse" class="text-tc-dim ml-1">↓</span>
+                </td>
+                <td class="py-2 text-right font-display font-bold"
+                    :class="store.result.lstmMetrics.rmse < store.result.metrics.rmse ? 'text-tc-purple' : 'text-tc-text'">
+                  {{ store.result.lstmMetrics.rmse.toFixed(4) }}
+                  <span v-if="store.result.lstmMetrics.rmse < store.result.metrics.rmse" class="text-tc-dim ml-1">↓</span>
+                </td>
+              </tr>
+              <tr class="hover:bg-tc-hover transition-colors">
+                <td class="py-2 label-xxs text-tc-meta">DIR. ACC</td>
+                <td class="py-2 text-right font-display font-bold"
+                    :style="{ color: store.result.metrics.dirAcc >= store.result.lstmMetrics.dirAcc ? 'var(--accent-cyan)' : 'var(--text-primary)' }">
+                  {{ (store.result.metrics.dirAcc * 100).toFixed(1) }}%
+                  <span v-if="store.result.metrics.dirAcc >= store.result.lstmMetrics.dirAcc" class="text-tc-dim ml-1">↑</span>
+                </td>
+                <td class="py-2 text-right font-display font-bold"
+                    :style="{ color: store.result.lstmMetrics.dirAcc > store.result.metrics.dirAcc ? 'var(--accent-purple)' : 'var(--text-primary)' }">
+                  {{ (store.result.lstmMetrics.dirAcc * 100).toFixed(1) }}%
+                  <span v-if="store.result.lstmMetrics.dirAcc > store.result.metrics.dirAcc" class="text-tc-dim ml-1">↑</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
         <!-- Backtest chart -->
         <div class="panel">
           <div class="panel-header">
@@ -128,11 +186,17 @@
               <span class="chart-legend__line" style="background:#e0e0e0"></span>ACTUAL
             </span>
             <span class="chart-legend__item">
-              <span class="chart-legend__line" style="background:#00e5ff"></span>PREDICTED
+              <span class="chart-legend__line" style="background:#00e5ff"></span>XGBOOST
+            </span>
+            <span v-if="store.result.lstmPredictions?.length" class="chart-legend__item">
+              <span class="chart-legend__line" style="background:#b388ff"></span>LSTM
             </span>
           </div>
           <div class="h-72">
-            <BacktestChart :predictions="store.result.predictions" />
+            <BacktestChart
+              :predictions="store.result.predictions"
+              :lstmPredictions="store.result.lstmPredictions"
+            />
           </div>
         </div>
 

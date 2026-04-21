@@ -24,11 +24,14 @@ router.post('/train', async (req, res) => {
       start_date: startDate,
       end_date: endDate,
       horizon: Number(horizon)
-    }, { timeout: 180000 }); // 3 min timeout for training
+    }, { timeout: 300000 }); // 5 min timeout for training (LSTM adds ~2 min)
 
-    const { metrics, predictions, next_forecast, feature_importance, data_points, feature_count } = response.data;
+    const {
+      metrics, predictions, next_forecast, feature_importance,
+      lstm_metrics, lstm_predictions,
+      data_points, feature_count
+    } = response.data;
 
-    // Save forecast to DB
     const forecast = await Forecast.create({
       userId: req.user._id,
       ticker: ticker.toUpperCase(),
@@ -39,6 +42,8 @@ router.post('/train', async (req, res) => {
       predictions,
       nextForecast: next_forecast,
       featureImportance: feature_importance,
+      lstmMetrics: lstm_metrics,
+      lstmPredictions: lstm_predictions,
       dataPoints: data_points,
       featureCount: feature_count
     });
@@ -49,6 +54,8 @@ router.post('/train', async (req, res) => {
       predictions,
       nextForecast: next_forecast,
       featureImportance: feature_importance,
+      lstmMetrics: lstm_metrics,
+      lstmPredictions: lstm_predictions,
       dataPoints: data_points,
       featureCount: feature_count
     });

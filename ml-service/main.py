@@ -13,10 +13,14 @@ from sklearn.metrics import mean_squared_error
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 import shap
+import torch
+import torch.nn as nn
 import time
 from datetime import datetime, timedelta
 import warnings
 warnings.filterwarnings('ignore')
+
+torch.manual_seed(42)
 
 app = FastAPI(title="Stock Forecast ML Service")
 
@@ -204,6 +208,116 @@ def compute_metrics(predictions: list) -> dict:
     }
 
 
+# ─── LSTM Model ────────────────────────────────────────────────────────────────
+
+_LSTM_SEQ_LEN   = 20   # trading days per input sequence (~1 month)
+_LSTM_HIDDEN    = 64
+_LSTM_LAYERS    = 2
+_LSTM_DROPOUT   = 0.2
+_LSTM_EPOCHS    = 30
+_LSTM_BATCH     = 64
+_LSTM_LR        = 1e-3
+
+
+class LSTMForecaster(nn.Module):
+    def __init__(self, n_features: int):
+        super().__init__()
+        self.lstm = nn.LSTM(
+            input_size=n_features,
+            hidden_size=_LSTM_HIDDEN,
+            num_layers=_LSTM_LAYERS,
+            batch_first=True,
+            dropout=_LSTM_DROPOUT
+        )
+        self.head = nn.Linear(_LSTM_HIDDEN, 1)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        out, _ = self.lstm(x)
+        return self.head(out[:, -1, :])  # use last timestep hidden state
+
+
+def walk_forward_lstm(df: pd.DataFrame, horizon: int, n_splits: int = 5) -> list:
+    """
+    Walk-forward LSTM backtesting using identical fold boundaries as XGBoost.
+    Each fold: fit StandardScaler on training features only (trees are scale-invariant;
+    LSTMs are not), build overlapping sequences of length _LSTM_SEQ_LEN, train with
+    Adam/MSE for _LSTM_EPOCHS epochs, then predict across the test window.
+    """
+    feature_cols = [c for c in df.columns
+                    if c not in ['Open', 'High', 'Low', 'Close', 'Volume', 'target']]
+    X_raw = df[feature_cols].values.astype(np.float32)
+    y_raw = df['target'].values.astype(np.float32)
+    close  = df['Close'].values
+
+    n         = len(X_raw)
+    min_train = int(n * 0.6)
+    fold_size = (n - min_train) // n_splits
+    seq_len   = _LSTM_SEQ_LEN
+
+    predictions = []
+
+    for i in range(n_splits):
+        train_end     = min_train + i * fold_size
+        test_end      = min(train_end + fold_size, n)
+        safe_train_end = max(seq_len + 1, train_end - horizon)
+
+        if safe_train_end <= seq_len:
+            continue
+
+        # ── Scale features on training window only ──────────────────────────
+        scaler = StandardScaler()
+        X_train = scaler.fit_transform(X_raw[:safe_train_end]).astype(np.float32)
+        y_train = y_raw[:safe_train_end]
+
+        # ── Build overlapping sequences for training ─────────────────────────
+        # Sequence ending at row j predicts y[j].
+        X_seq = np.array([X_train[j:j + seq_len] for j in range(len(X_train) - seq_len)])
+        y_seq = np.array([y_train[j + seq_len - 1] for j in range(len(X_train) - seq_len)])
+
+        if len(X_seq) < 10:
+            continue
+
+        X_t = torch.from_numpy(X_seq)
+        y_t = torch.from_numpy(y_seq)
+
+        # ── Train ────────────────────────────────────────────────────────────
+        model   = LSTMForecaster(n_features=X_raw.shape[1])
+        opt     = torch.optim.Adam(model.parameters(), lr=_LSTM_LR)
+        loss_fn = nn.MSELoss()
+        dataset = torch.utils.data.TensorDataset(X_t, y_t)
+        loader  = torch.utils.data.DataLoader(dataset, batch_size=_LSTM_BATCH, shuffle=True)
+
+        model.train()
+        for _ in range(_LSTM_EPOCHS):
+            for xb, yb in loader:
+                opt.zero_grad()
+                loss_fn(model(xb).squeeze(-1), yb).backward()
+                opt.step()
+
+        # ── Predict on test window ───────────────────────────────────────────
+        # Context window: seq_len rows before the first test row so every
+        # test position can form a complete input sequence.
+        ctx_start  = train_end - seq_len
+        X_ctx      = scaler.transform(X_raw[ctx_start:test_end]).astype(np.float32)
+
+        model.eval()
+        with torch.no_grad():
+            for k in range(test_end - train_end):
+                seq    = torch.from_numpy(X_ctx[k: k + seq_len]).unsqueeze(0)
+                p_ret  = float(model(seq).squeeze())
+                t_ret  = float(y_raw[train_end + k])
+                c_val  = float(close[train_end + k])
+                predictions.append({
+                    'date':        df.index[train_end + k].strftime('%Y-%m-%d'),
+                    'y_true':      c_val * (1 + t_ret),
+                    'y_pred':      c_val * (1 + p_ret),
+                    'pred_return': p_ret,
+                    'true_return': t_ret
+                })
+
+    return predictions
+
+
 # ─── Routes ────────────────────────────────────────────────────────────────────
 
 @app.get("/prices/{ticker}")
@@ -302,19 +416,24 @@ def train_model(req: TrainRequest):
                 'y_pred': round(last_close * (1 + interpolated_return), 2)
             })
 
-        # Clean predictions for response (remove internal fields)
-        clean_predictions = [
-            {'date': p['date'], 'y_true': p['y_true'], 'y_pred': p['y_pred']}
-            for p in predictions if p['y_true'] is not None
-        ]
+        # 7. LSTM walk-forward backtest (same fold boundaries, normalised features)
+        lstm_predictions = walk_forward_lstm(df_features, req.horizon, n_splits=5)
+        lstm_metrics = compute_metrics(lstm_predictions) if len(lstm_predictions) >= 5 else None
+
+        # Clean predictions for response (strip internal return fields)
+        def _clean(preds):
+            return [{'date': p['date'], 'y_true': p['y_true'], 'y_pred': p['y_pred']}
+                    for p in preds if p.get('y_true') is not None]
 
         return {
-            'metrics': metrics,
-            'predictions': clean_predictions,
-            'next_forecast': next_forecast,
+            'metrics':           metrics,
+            'predictions':       _clean(predictions),
             'feature_importance': feature_importance,
-            'data_points': len(df_features),
-            'feature_count': len(feature_cols)
+            'lstm_metrics':      lstm_metrics,
+            'lstm_predictions':  _clean(lstm_predictions),
+            'next_forecast':     next_forecast,
+            'data_points':       len(df_features),
+            'feature_count':     len(feature_cols)
         }
 
     except HTTPException:
